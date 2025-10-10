@@ -6,6 +6,7 @@ from datetime import datetime
 import yfinance as yf 
 from tensorflow.keras.models import Sequential 
 from tensorflow.keras.layers import LSTM, Dense, Dropout
+from tensorflow.keras import backend as Backend
 import matplotlib.pyplot as plt 
 from sklearn.preprocessing import MinMaxScaler
 import pandas as pd 
@@ -30,7 +31,7 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# ===== Header Section =====
+
 with st.container():
     st.markdown('<div class="toolbar">', unsafe_allow_html=True)
 
@@ -70,7 +71,7 @@ if StockInput:
  
     Scalar = MinMaxScaler(feature_range=(0, 1))
     Scaled = Scalar.fit_transform(df)
-    sequence_length = 60
+    sequence_length = 30
 
     X, Y = [], []
     for i in range(sequence_length, len(Scaled)):
@@ -80,13 +81,13 @@ if StockInput:
     X = np.reshape(X, (X.shape[0], X.shape[1], 1))
 
     model = Sequential()
-    model.add(LSTM(units=50, return_sequences=True, input_shape=(X.shape[1], 1)))
+    model.add(LSTM(units=30, return_sequences=True, input_shape=(X.shape[1], 1)))
     model.add(Dropout(0.2))
-    model.add(LSTM(units=50))
+    model.add(LSTM(units=30))
     model.add(Dropout(0.2))
     model.add(Dense(1))
     model.compile(optimizer="adam", loss="mean_squared_error")
-    model.fit(X, Y, epochs=5, batch_size=32, verbose=0)
+    model.fit(X, Y, epochs=2, batch_size=32, verbose=0)
 
  
     last_days = Scaled[-100:]
@@ -124,6 +125,8 @@ if StockInput:
         plt.ylabel('Price')
         plt.legend()
         st.pyplot(fig)
+        
+        Backend.clear_session()
         
 
         
