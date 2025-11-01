@@ -1,24 +1,19 @@
-# import os for system work 
 import os
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
-# use streamlit for create web header 
-import streamlit as st
-from datetime import datetime
-# use a yfinance work with different stock data 
-import yfinance as yf
 
-# use a traning model to trin and test the data 
-from tensorflow.keras.models import Sequential
+import streamlit as st 
+from datetime import datetime
+import yfinance as yf 
+from tensorflow.keras.models import Sequential 
 from tensorflow.keras.layers import LSTM, Dense, Dropout
-from tensorflow.keras import backend as K
-# plot the graph 
-import matplotlib.pyplot as plt
+from tensorflow.keras import backend as Backend
+import matplotlib.pyplot as plt 
 from sklearn.preprocessing import MinMaxScaler
-import pandas as pd
+import pandas as pd 
 import numpy as np
 
-
 st.set_page_config(page_title="Prediction Stock", page_icon="📈", layout="wide")
+
 
 st.markdown("""
 <style>
@@ -47,43 +42,24 @@ with st.container():
         st.markdown("<h1>Predicting stock prices using artificial intelligence</h1>", unsafe_allow_html=True)
 
     st.markdown('</div>', unsafe_allow_html=True)
-
-
+    
 with st.container():
-    st.markdown('<div class="toolbar">', unsafe_allow_html=True)
+     st.markdown('<div class="toolbar">', unsafe_allow_html=True)
 
 StockInput = st.selectbox(
     "Select a stock symbol:", 
     ["TSLA", "AAPL", "MSFT", "AMZN", "GOOGL", "META", "NVDA"]
 )
-min_date = datetime(2023, 1, 1)
-start_date = st.date_input("Select Start Date", value=datetime(2024, 1, 1), min_value=min_date)
-
-
-@st.cache_data
-def load_stock_data(symbol, start, end):
-    data = yf.download(symbol, start=start, end=end)
-    if isinstance(data.columns, pd.MultiIndex):
-        data.columns = data.columns.get_level_values(0)
-    return data[["Close"]]
-
-@st.cache_resource
-def train_model(X, Y):
-    model = Sequential([
-        LSTM(30, return_sequences=True, input_shape=(X.shape[1], 1)),
-        Dropout(0.2),
-        LSTM(30),
-        Dropout(0.2),
-        Dense(1)
-    ])
-    model.compile(optimizer="adam", loss="mean_squared_error")
-    model.fit(X, Y, epochs=2, batch_size=32, verbose=0)
-    return model
-
+start_date = st.date_input("Select Start Date", value=datetime(2025, 1, 1))
 
 if StockInput:
     Today = datetime.today().strftime('%Y-%m-%d')
-    df = load_stock_data(StockInput, start_date, Today)
+    data = yf.download(StockInput, start=start_date, end=Today)
+
+    if isinstance(data.columns, pd.MultiIndex):
+        data.columns = data.columns.get_level_values(0)
+
+    df = data[["Close"]]
 
     st.subheader("📊 Historical Data")
     if df.empty:
@@ -92,45 +68,54 @@ if StockInput:
         st.line_chart(df)
         st.dataframe(df.tail(10))
 
-
-    scaler = MinMaxScaler(feature_range=(0, 1))
-    scaled_data = scaler.fit_transform(df)
+ 
+    Scalar = MinMaxScaler(feature_range=(0, 1))
+    Scaled = Scalar.fit_transform(df)
     sequence_length = 30
 
     X, Y = [], []
-    for i in range(sequence_length, len(scaled_data)):
-        X.append(scaled_data[i-sequence_length:i, 0])
-        Y.append(scaled_data[i, 0])
+    for i in range(sequence_length, len(Scaled)):
+        X.append(Scaled[i-sequence_length:i, 0])
+        Y.append(Scaled[i, 0])
     X, Y = np.array(X), np.array(Y)
     X = np.reshape(X, (X.shape[0], X.shape[1], 1))
 
+    model = Sequential()
+    model.add(LSTM(units=30, return_sequences=True, input_shape=(X.shape[1], 1)))
+    model.add(Dropout(0.2))
+    model.add(LSTM(units=30))
+    model.add(Dropout(0.2))
+    model.add(Dense(1))
+    model.compile(optimizer="adam", loss="mean_squared_error")
+    model.fit(X, Y, epochs=2, batch_size=32, verbose=0)
+
  
-    model = train_model(X, Y)
-
-
-    last_days = scaled_data[-100:]
+    last_days = Scaled[-100:]
     last_days = np.reshape(last_days, (1, last_days.shape[0], 1))
     predict_data = model.predict(last_days)
-    K.clear_session()  # Free memory after prediction
-    predict_data = scaler.inverse_transform(predict_data)
-
+    predict_data = Scalar.inverse_transform(predict_data)
 
     st.subheader(f"📈 Live Update for {StockInput} (Today)")
     table_placeholder = st.empty()
-    latest_price = df["Close"].iloc[-1]
+
+  
+    latest_price = data["Close"].iloc[-1]
     new_row = {"Time": pd.Timestamp.now(), "Value": latest_price}
     today_data = pd.DataFrame([new_row])
     table_placeholder.dataframe(today_data)
+
 
     st.subheader("💡 Predicted Stock Price")
     st.table({
         f"Predicted Price for {StockInput} (USD)": [f"{predict_data[0][0]:.2f} $"]
     })
 
-  
+
     st.write("⬇️ Press the button below to show the graph")
+
     if st.button("Show Forecast Graph"):
-        real_data = scaler.inverse_transform(Y.reshape(-1, 1))
+        real_data = Scalar.inverse_transform(Y.reshape(-1, 1))
+
         fig = plt.figure(figsize=(10, 5))
         plt.plot(real_data, color='blue', label='Actual Price')
         plt.plot([None]*(len(real_data)-1) + [predict_data[0][0]], 
@@ -140,3 +125,5 @@ if StockInput:
         plt.ylabel('Price')
         plt.legend()
         st.pyplot(fig)
+        
+        Backend.clear_session()
